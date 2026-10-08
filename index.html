@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>공학용 계산기</title>
+<script>
+(function(){try{var t=localStorage.getItem('engcalc.theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='light';}})();
+</script>
+<style>
+:root{
+  --bg:#f3f4f7;--panel:#ffffff;--text:#161a22;--muted:#6a7282;--line:#e3e6ec;
+  --accent:#3d6bff;--accent-ink:#ffffff;--accent-soft:#e8eeff;
+  --k-num:#f1f3f7;--k-num-h:#e6e9ef;--k-op:#e3e8f3;--k-fn:#eef1f8;
+  --danger:#e5484d;--danger-soft:#fdecec;--lcd:#f7f9fc;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.05);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"D2Coding",monospace;
+}
+[data-theme=dark]{
+  --bg:#0f1116;--panel:#181b23;--text:#e9ebf1;--muted:#8c94a6;--line:#272b36;
+  --accent:#6c8cff;--accent-ink:#0b1022;--accent-soft:#222a45;
+  --k-num:#232733;--k-num-h:#2d3241;--k-op:#2b3142;--k-fn:#202431;
+  --danger:#ff6b70;--danger-soft:#3a2124;--lcd:#12141b;--shadow:none;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 var(--font)}
+.wrap{max-width:1040px;margin:0 auto;padding:16px 16px 40px}
+header.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+header.top h1{font-size:19px;margin:0;font-weight:700;letter-spacing:-.02em}
+.tabs{display:flex;gap:6px;flex:1;overflow-x:auto;padding:2px}
+.tabs button{border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:999px;font:600 14px var(--font);cursor:pointer;white-space:nowrap}
+.tabs button:hover{background:var(--k-num)}
+.tabs button.on{background:var(--accent);color:var(--accent-ink)}
+.icon-btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:10px;width:38px;height:38px;cursor:pointer;font-size:17px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
+.card h2{margin:0 0 12px;font-size:16px}
+.card+.card{margin-top:16px}
+[hidden]{display:none!important}
+
+/* 계산기 */
+.calc-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.calc-layout .card+.card{margin-top:0}
+.status{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.status span{font:600 11px var(--mono);padding:2px 8px;border-radius:999px;background:var(--k-num);color:var(--muted)}
+.status span.on{background:var(--accent-soft);color:var(--accent)}
+.status button{font:600 11px var(--mono);padding:2px 8px;border-radius:999px;background:var(--k-num);color:var(--muted);border:0;cursor:pointer}
+.status button.on{background:var(--accent-soft);color:var(--accent)}
+.side{display:grid;gap:16px}
+.side .card+.card{margin-top:0}
+.cnt{font:600 12px var(--mono);color:var(--muted);margin-left:6px}
+.saved-add{display:flex;gap:6px;margin-bottom:8px}
+.saved-add .field{flex:1;min-width:0;padding:7px 10px;font-size:13px}
+.saved-add .mini{white-space:nowrap;padding:6px 12px}
+#savedList{max-height:340px;overflow:auto}
+.s-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.s-row:first-child{border-top:0}
+.s-lab{font-size:12px;color:var(--muted);width:64px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-val{flex:1;font:600 15px var(--mono);cursor:pointer;word-break:break-all;text-align:right}
+.s-val:hover{color:var(--accent)}
+.s-del{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px}
+.s-del:hover{color:var(--danger)}
+.s-lab.link{cursor:pointer;color:var(--accent)}
+.sub-hint{color:var(--muted);font-size:12px;margin:-2px 0 8px}
+.sub-hint code{font-family:var(--mono)}
+.chipsel{font:600 11px var(--mono);padding:2px 6px;border-radius:999px;border:0;background:var(--k-num);color:var(--muted);cursor:pointer;outline:0}
+.chipsel.on{background:var(--accent-soft);color:var(--accent)}
+.tools{display:flex;gap:8px;margin-top:12px}
+.tools .field{padding:8px 10px;font-size:13px}
+.display{background:var(--lcd);border:1px solid var(--line);border-radius:14px;padding:12px 16px 8px;margin-bottom:14px}
+#expr{width:100%;border:0;background:transparent;color:var(--text);font:500 22px var(--mono);outline:0;text-align:right;padding:4px 0}
+.result{min-height:52px;font:600 38px/1.25 var(--mono);text-align:right;overflow-x:auto;white-space:nowrap;cursor:copy}
+.result sup{font-size:.55em}
+.result.preview{color:var(--muted)}
+.result.error{color:var(--danger);font-size:22px;line-height:2.1}
+.pads{display:grid;grid-template-columns:5fr 4fr;gap:14px}
+.pad{display:grid;gap:8px}
+.pad.sci{grid-template-columns:repeat(5,1fr)}
+.pad.main{grid-template-columns:repeat(4,1fr)}
+.key{height:52px;height:clamp(40px,7dvh,52px);border:0;border-radius:12px;background:var(--k-num);color:var(--text);font:600 15px var(--font);cursor:pointer;transition:background .12s,transform .06s;padding:0;min-width:0}
+.key:hover{background:var(--k-num-h)}
+.key:active{transform:scale(.95)}
+.key.num{font-size:21px;font-weight:500}
+.key.fn{background:var(--k-fn);font-size:14px}
+.key.fn:hover{background:var(--k-num-h)}
+.key.op{background:var(--k-op);color:var(--accent);font-size:22px}
+.key.tog{background:transparent;border:1.5px solid var(--line);color:var(--muted);font-size:12.5px}
+.key.tog.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.key.clr{background:var(--danger-soft);color:var(--danger)}
+.key.eq{background:var(--accent);color:var(--accent-ink);font-size:24px}
+.key.eq:hover{filter:brightness(1.08)}
+.hist-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.hist-head h2{margin:0}
+.hist{max-height:620px;overflow:auto}
+.hist ul{list-style:none;margin:0;padding:0}
+.hist li{padding:10px 0;border-top:1px solid var(--line)}
+.hist li:first-child{border-top:0}
+.h-expr{font:13px var(--mono);color:var(--muted);cursor:pointer;word-break:break-all}
+.h-res{font:600 18px var(--mono);cursor:pointer;word-break:break-all}
+.h-expr:hover,.h-res:hover{color:var(--accent)}
+.empty{color:var(--muted);font-size:13px;padding:8px 0}
+.hint{color:var(--muted);font-size:12.5px;margin-top:14px}
+.mini{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:4px 10px;font:600 12px var(--font);cursor:pointer}
+.mini:hover{color:var(--accent);border-color:var(--accent)}
+
+/* 공통 입력 */
+.field{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--lcd);color:var(--text);font:15px var(--font);outline:0}
+.field:focus{border-color:var(--accent)}
+.field.mono,textarea.field{font-family:var(--mono)}
+textarea.field{min-height:96px;resize:vertical}
+label.lab{display:block;font-size:12.5px;color:var(--muted);margin:0 0 4px;font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+.row>*{flex:1;min-width:120px}
+.row>.fit{flex:0 0 auto;min-width:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--muted);padding:9px 14px;font:600 13px var(--font);cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chips button{border:1px solid var(--line);background:var(--k-fn);color:var(--text);border-radius:999px;padding:7px 12px;font:600 13px var(--font);cursor:pointer}
+.chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.orow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.orow:first-child{border-top:0}
+.olab{width:64px;font:700 12px var(--mono);color:var(--muted);flex:none}
+.oval{flex:1;font:500 15px var(--mono);word-break:break-all}
+.msg{color:var(--danger);font-size:13px;min-height:20px;margin-top:6px}
+.subtle{color:var(--muted);font-size:12.5px;margin:10px 0 4px;font-weight:600}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t td{padding:8px 4px;border-top:1px solid var(--line)}
+table.t tr:first-child td{border-top:0}
+table.t td:first-child{color:var(--muted);width:46%}
+table.t td:last-child{font-family:var(--mono);text-align:right;word-break:break-all}
+.big{font:600 28px/1.3 var(--mono);word-break:break-all}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+#toast.show{opacity:1}
+
+/* 일반 / 공학 모드 */
+.modebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.modebar .status{margin-bottom:0}
+.modebar .seg button{padding:5px 14px;font-size:12.5px}
+[data-mode=basic] .sci-only{display:none}
+[data-mode=basic] .pads{grid-template-columns:1fr;max-width:460px;margin:0 auto}
+[data-mode=basic] .key{height:clamp(44px,8.6dvh,64px)}
+[data-mode=basic] .key.num{font-size:24px}
+
+@media(max-width:980px){.calc-layout{grid-template-columns:1fr}.hist{max-height:none}}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+@media(max-width:620px){
+  header.top h1{display:none}
+  header.top{margin-bottom:8px;gap:8px}
+  .wrap{padding:10px 8px 28px}
+  .card{padding:12px}
+  .pads{grid-template-columns:1fr;gap:8px}
+  .pad.main{order:-1}                       /* 숫자 키를 결과 화면 바로 아래에 */
+  .pad.sci .key{height:clamp(38px,6.2dvh,48px)}
+  .pad.main .key{height:clamp(42px,7.6dvh,58px)}
+  [data-mode=basic] .pad.main .key{height:clamp(46px,8.8dvh,66px)}
+  .display{position:sticky;top:0;z-index:5;padding:8px 12px 4px;margin-bottom:10px;box-shadow:0 8px 10px -8px rgba(16,24,40,.3)}
+  #expr{font-size:20px}
+  .result{font-size:34px;min-height:44px}
+  .hint{display:none}
+}
+@media(max-height:480px) and (orientation:landscape){
+  header.top h1,.hint{display:none}
+  .key{height:clamp(30px,9dvh,40px)}
+  .display{padding:6px 12px 2px;margin-bottom:8px}
+  #expr{font-size:18px}
+  .result{min-height:34px;font-size:28px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>공학용 계산기</h1>
+    <nav class="tabs" id="tabs" aria-label="기능 선택">
+      <button data-tab="calc" class="on">계산</button>
+      <button data-tab="base">진법·비트</button>
+      <button data-tab="cx">복소수</button>
+      <button data-tab="stat">통계</button>
+      <button data-tab="unit">단위 변환</button>
+    </nav>
+    <button class="icon-btn" id="themeBtn" title="테마 전환" aria-label="테마 전환">◐</button>
+  </header>
+
+  <!-- 계산 -->
+  <section id="tab-calc">
+    <div class="calc-layout">
+      <div class="card" id="calcCard">
+        <div class="modebar">
+        <div class="seg" id="modeSeg"><button type="button" data-m="basic">일반</button><button type="button" data-m="sci">공학</button></div>
+        <div class="status">
+          <span id="stAngle" class="sci-only">DEG</span><span id="st2nd" class="sci-only">2nd</span><span id="stHyp" class="sci-only">HYP</span><span id="stMem" class="sci-only">M</span><span id="stFmt" class="sci-only">NORM</span><button type="button" id="stComma" title="천 단위 콤마 켜기/끄기">콤마 ON</button><select id="stDec" class="chipsel" title="소수 자릿수 고정"><option value="">소수 자동</option><option value="0">소수 0자리</option><option value="1">소수 1자리</option><option value="2">소수 2자리</option><option value="3">소수 3자리</option><option value="4">소수 4자리</option><option value="5">소수 5자리</option><option value="6">소수 6자리</option><option value="7">소수 7자리</option><option value="8">소수 8자리</option><option value="9">소수 9자리</option><option value="10">소수 10자리</option></select>
+        </div>
+        </div>
+        <div class="display">
+          <input id="expr" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="수식 입력" placeholder="0">
+          <div id="result" class="result" title="클릭하면 결과가 복사됩니다">0</div>
+        </div>
+        <div class="pads">
+          <div class="pad sci sci-only" id="sciPad"></div>
+          <div class="pad main" id="mainPad"></div>
+        </div>
+        <div class="tools sci-only"><select id="constSel" class="field" aria-label="물리·공학 상수 삽입"></select></div>
+        <p class="hint">키보드로도 입력할 수 있습니다. Enter = 계산, Esc = 전체 지우기. 괄호가 덜 닫혀도 자동으로 닫아 계산합니다. 결과를 클릭하면 복사됩니다.</p>
+      </div>
+      <div class="side">
+        <aside class="card saved">
+          <div class="hist-head"><h2>저장한 숫자<span class="cnt" id="savedCount">0/20</span></h2><button class="mini" id="savedClear" type="button">모두 삭제</button></div>
+          <div class="sub-hint">이름을 붙이면 수식에서 <code>A×3</code>, <code>환율*100</code>처럼 쓸 수 있습니다. 같은 이름으로 저장하면 값이 갱신됩니다.</div>
+          <div class="saved-add">
+            <input id="savedName" class="field" maxlength="12" placeholder="이름 (선택, 예: A, 환율)" autocomplete="off">
+            <button class="mini" id="savedAdd" type="button">현재 값 저장</button>
+          </div>
+          <div id="savedList"></div>
+        </aside>
+        <aside class="card hist">
+          <div class="hist-head"><h2>계산 기록</h2><button class="mini" id="histClear">지우기</button></div>
+          <ul id="histList"></ul>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- 진법 -->
+  <section id="tab-base" hidden>
+    <div class="card">
+      <h2>진법 변환</h2>
+      <div class="row">
+        <div class="fit"><label class="lab">입력 진법</label>
+          <div class="seg" id="baseSeg"><button data-b="2">BIN</button><button data-b="8">OCT</button><button data-b="10" class="on">DEC</button><button data-b="16">HEX</button></div></div>
+        <div class="fit"><label class="lab">비트 폭 (2의 보수)</label>
+          <select id="bitW" class="field"><option>8</option><option>16</option><option selected>32</option><option>64</option></select></div>
+      </div>
+      <label class="lab" for="baseIn">값</label>
+      <input id="baseIn" class="field mono" placeholder="예: 255, -42, FF, 1010_1010" autocomplete="off" spellcheck="false">
+      <div class="msg" id="baseMsg"></div>
+      <div id="baseOut"></div>
+    </div>
+    <div class="card">
+      <h2>비트 연산</h2>
+      <div class="pair" style="margin-bottom:10px">
+        <div><label class="lab" for="bitA">A (입력 진법)</label><input id="bitA" class="field mono" autocomplete="off" spellcheck="false"></div>
+        <div><label class="lab" for="bitB" id="bitBLab">B (입력 진법)</label><input id="bitB" class="field mono" autocomplete="off" spellcheck="false"></div>
+      </div>
+      <div class="chips" id="bitOps">
+        <button data-op="AND" class="on">A AND B</button><button data-op="OR">A OR B</button><button data-op="XOR">A XOR B</button>
+        <button data-op="NOT">NOT A</button><button data-op="SHL">A &lt;&lt; B</button><button data-op="SHR">A &gt;&gt; B</button>
+      </div>
+      <div class="msg" id="bitMsg"></div>
+      <div id="bitOut"></div>
+    </div>
+  </section>
+
+  <!-- 복소수 -->
+  <section id="tab-cx" hidden>
+    <div class="card">
+      <h2>복소수 계산</h2>
+      <p class="subtle" style="margin-top:0">각 칸에는 숫자뿐 아니라 수식(예: sqrt(2)/2, π/4)도 입력할 수 있습니다.</p>
+      <div class="pair">
+        <div><label class="lab">z₁ 실수부 a</label><input id="cxA" class="field mono" value="3" autocomplete="off"></div>
+        <div><label class="lab">z₁ 허수부 b</label><input id="cxB" class="field mono" value="4" autocomplete="off"></div>
+        <div><label class="lab">z₂ 실수부 c</label><input id="cxC" class="field mono" value="1" autocomplete="off"></div>
+        <div><label class="lab">z₂ 허수부 d</label><input id="cxD" class="field mono" value="-2" autocomplete="off"></div>
+      </div>
+      <div class="subtle">연산</div>
+      <div class="chips" id="cxOps"></div>
+      <div class="row">
+        <div class="fit"><label class="lab">극형식 각도</label>
+          <div class="seg" id="cxUnit"><button data-u="deg" class="on">도(°)</button><button data-u="rad">라디안</button></div></div>
+      </div>
+      <div class="msg" id="cxMsg"></div>
+      <div id="cxOut"></div>
+    </div>
+  </section>
+
+  <!-- 통계 -->
+  <section id="tab-stat" hidden>
+    <div class="grid2">
+      <div class="card">
+        <h2>데이터 입력</h2>
+        <label class="lab" for="statX">X 값 (쉼표·공백·줄바꿈으로 구분)</label>
+        <textarea id="statX" class="field" placeholder="예: 12, 15, 9, 21, 18"></textarea>
+        <label class="lab" for="statY" style="margin-top:12px">Y 값 (선택 — 입력하면 선형 회귀 계산)</label>
+        <textarea id="statY" class="field" placeholder="X와 같은 개수로 입력"></textarea>
+        <div class="msg" id="statMsg"></div>
+      </div>
+      <div class="card">
+        <h2>결과</h2>
+        <div id="statOut"><div class="empty">X 값을 입력하면 바로 계산됩니다.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 단위 -->
+  <section id="tab-unit" hidden>
+    <div class="card">
+      <h2>단위 변환</h2>
+      <div class="chips" id="unitCats"></div>
+      <div class="row">
+        <div><label class="lab" for="unitVal">값</label><input id="unitVal" class="field mono" value="1" autocomplete="off"></div>
+        <div><label class="lab" for="unitFrom">변환 전</label><select id="unitFrom" class="field"></select></div>
+        <div class="fit"><label class="lab">&nbsp;</label><button class="mini" id="unitSwap" style="padding:10px 14px">⇄</button></div>
+        <div><label class="lab" for="unitTo">변환 후</label><select id="unitTo" class="field"></select></div>
+      </div>
+      <div class="msg" id="unitMsg"></div>
+      <div class="big" id="unitRes">—</div>
+      <div class="subtle">모든 단위로 보기</div>
+      <table class="t" id="unitAll"></table>
+    </div>
+  </section>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+// ==== CORE START ====
+const ERR_SYNTAX='수식 오류', ERR_DOMAIN='정의역 오류', ERR_DIV0='0으로 나눌 수 없음', ERR_RANGE='범위 초과';
+const E = msg => { const e = new Error(msg); e.ko = true; return e; };
+
+function gammaFn(z){
+  const g=7, p=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  if(z<0.5) return Math.PI/(Math.sin(Math.PI*z)*gammaFn(1-z));
+  z-=1; let x=p[0];
+  for(let i=1;i<g+2;i++) x+=p[i]/(z+i);
+  const t=z+g+0.5;
+  return Math.sqrt(2*Math.PI)*Math.pow(t,z+0.5)*Math.exp(-t)*x;
+}
+function factFn(n){
+  if(Number.isInteger(n)){
+    if(n<0) throw E(ERR_DOMAIN);
+    if(n>170) throw E(ERR_RANGE);
+    let r=1; for(let i=2;i<=n;i++) r*=i; return r;
+  }
+  const r=gammaFn(n+1);
+  if(!isFinite(r)) throw E(ERR_RANGE);
+  return r;
+}
+const needInt=x=>{ if(!Number.isInteger(x)||x<0) throw E(ERR_DOMAIN); return x; };
+
+const redTrig=(c,x)=> c.angle==='DEG'? x%360 : c.angle==='GRAD'? x%400 : x;
+const toRad=(c,x)=> c.angle==='DEG'? x*Math.PI/180 : c.angle==='GRAD'? x*Math.PI/200 : x;
+const fromRad=(c,r)=> c.angle==='DEG'? r*180/Math.PI : c.angle==='GRAD'? r*200/Math.PI : r;
+const snap=(v,r)=> (Math.abs(v)<1e-15 && Math.abs(r)>1e-3) ? 0 : v;
+
+const FUNCS={
+  sin:(c,x)=>{ const r=toRad(c,redTrig(c,x)); return snap(Math.sin(r),r); },
+  cos:(c,x)=>{ const r=toRad(c,redTrig(c,x)); return snap(Math.cos(r),r); },
+  tan:(c,x)=>{
+    const xr= c.angle==='DEG'? x%180 : c.angle==='GRAD'? x%200 : x;
+    if(c.angle==='DEG' && Math.abs(xr)===90) throw E(ERR_DOMAIN);
+    if(c.angle==='GRAD' && Math.abs(xr)===100) throw E(ERR_DOMAIN);
+    const r=toRad(c,xr);
+    if(c.angle==='RAD' && Math.abs(Math.cos(r))<1e-15) throw E(ERR_DOMAIN);
+    return snap(Math.tan(r),r);
+  },
+  asin:(c,x)=>{ if(x<-1||x>1) throw E(ERR_DOMAIN); return fromRad(c,Math.asin(x)); },
+  acos:(c,x)=>{ if(x<-1||x>1) throw E(ERR_DOMAIN); return fromRad(c,Math.acos(x)); },
+  atan:(c,x)=>fromRad(c,Math.atan(x)),
+  sinh:(c,x)=>Math.sinh(x), cosh:(c,x)=>Math.cosh(x), tanh:(c,x)=>Math.tanh(x),
+  asinh:(c,x)=>Math.asinh(x),
+  acosh:(c,x)=>{ if(x<1) throw E(ERR_DOMAIN); return Math.acosh(x); },
+  atanh:(c,x)=>{ if(x<=-1||x>=1) throw E(ERR_DOMAIN); return Math.atanh(x); },
+  log:(c,x,b)=>{
+    if(x<=0) throw E(ERR_DOMAIN);
+    if(b===undefined) return Math.log10(x);
+    if(b<=0||b===1) throw E(ERR_DOMAIN);
+    return Math.log(x)/Math.log(b);
+  },
+  ln:(c,x)=>{ if(x<=0) throw E(ERR_DOMAIN); return Math.log(x); },
+  sqrt:(c,x)=>{ if(x<0) throw E(ERR_DOMAIN); return Math.sqrt(x); },
+  cbrt:(c,x)=>Math.cbrt(x),
+  abs:(c,x)=>Math.abs(x),
+  exp:(c,x)=>Math.exp(x),
+  floor:(c,x)=>Math.floor(x),
+  ceil:(c,x)=>Math.ceil(x),
+  npr:(c,n,r)=>{ needInt(n); needInt(r); if(r>n) throw E(ERR_DOMAIN); let v=1; for(let i=0;i<r;i++) v*=(n-i); return v; },
+  ncr:(c,n,r)=>{
+    needInt(n); needInt(r); if(r>n) throw E(ERR_DOMAIN);
+    r=Math.min(r,n-r); let v=1;
+    for(let i=1;i<=r;i++) v=v*(n-r+i)/i;
+    return v<Number.MAX_SAFE_INTEGER? Math.round(v) : v;
+  }
+};
+const ARITY={log:[1,2],npr:[2,2],ncr:[2,2]};
+const CONSTS={pi:()=>Math.PI,e:()=>Math.E,ans:c=>c.ans,m:c=>c.mem,rand:()=>Math.random()};
+const NAMES=[...Object.keys(FUNCS),...Object.keys(CONSTS),'mod'].sort((a,b)=>b.length-a.length);
+
+function pw(a,b){
+  if(a===0 && b<0) throw E(ERR_DIV0);
+  if(a<0 && !Number.isInteger(b)){
+    const inv=1/b;
+    if(Number.isInteger(inv) && Math.abs(inv)%2===1) return -Math.pow(-a,b);
+  }
+  const r=Math.pow(a,b);
+  if(Number.isNaN(r)) throw E(ERR_DOMAIN);
+  return r;
+}
+function chk(v){
+  if(Number.isNaN(v)) throw E(ERR_DOMAIN);
+  if(!Number.isFinite(v)) throw E(ERR_RANGE);
+  return v;
+}
+function norm(s){
+  return s.replace(/\s+/g,'').replace(/⁻¹/g,'^(-1)').replace(/²/g,'^2').replace(/³/g,'^3')
+    .replace(/[×·∙]/g,'*').replace(/÷/g,'/').replace(/[−–—]/g,'-')
+    .replace(/π/g,'pi').replace(/√/g,'sqrt').replace(/∛/g,'cbrt');
+}
+function tokenize(src,varNames){
+  const s=norm(src), low=s.toLowerCase(), toks=[]; let i=0;
+  const names=(varNames&&varNames.length)? [...NAMES,...varNames].sort((a,b)=>b.length-a.length) : NAMES;
+  while(i<s.length){
+    const ch=s[i]; let m;
+    if((m=/^(\d+\.?\d*|\.\d+)(E[+-]?\d+)?/.exec(s.slice(i)))){ toks.push({t:'num',v:parseFloat(m[0])}); i+=m[0].length; continue; }
+    if(/[a-zA-Z가-힣_]/.test(ch)){
+      const nm=names.find(n=>low.startsWith(n,i));
+      if(!nm) throw E(ERR_SYNTAX);
+      toks.push({t:'id',v:nm}); i+=nm.length; continue;
+    }
+    if('+-*/^(),!%'.includes(ch)){ toks.push({t:'op',v:ch}); i++; continue; }
+    throw E(ERR_SYNTAX);
+  }
+  return toks;
+}
+function evaluate(src, ctx){
+  const toks=tokenize(src, ctx&&ctx.vars? Object.keys(ctx.vars) : null);
+  if(!toks.length) throw E(ERR_SYNTAX);
+  let depth=0;
+  for(const t of toks){ if(t.t==='op'){ if(t.v==='(') depth++; else if(t.v===')'){ depth--; if(depth<0) throw E(ERR_SYNTAX); } } }
+  while(depth-- >0) toks.push({t:'op',v:')'});
+  let p=0;
+  const isOp=v=>toks[p]&&toks[p].t==='op'&&toks[p].v===v;
+  const isMod=()=>toks[p]&&toks[p].t==='id'&&toks[p].v==='mod';
+  const startsFactor=()=>{ const t=toks[p]; return t&&(t.t==='num'||(t.t==='id'&&t.v!=='mod')||(t.t==='op'&&t.v==='(')); };
+  // 일반 모드(ctx.pctAdd): "100+10%" = 110, "200-10%" = 180 처럼 앞의 값에 대한 비율로 가감한다
+  function pctOperand(){
+    if(!(ctx&&ctx.pctAdd)) return null;
+    const a=toks[p], b=toks[p+1], c=toks[p+2];
+    if(a&&a.t==='num'&&b&&b.t==='op'&&b.v==='%'&&(!c||(c.t==='op'&&(c.v==='+'||c.v==='-'||c.v===')'||c.v===',')))){ p+=2; return a.v; }
+    return null;
+  }
+  function expr(){
+    let v=term();
+    for(;;){
+      if(isOp('+')||isOp('-')){
+        const sg=isOp('+')?1:-1; p++;
+        const pc=pctOperand();
+        v += pc!==null ? sg*v*pc/100 : sg*term();
+      } else return v;
+    }
+  }
+  function term(){
+    let v=implicit();
+    for(;;){
+      if(isOp('*')){p++; v*=implicit();}
+      else if(isOp('/')){p++; const d=implicit(); if(d===0) throw E(ERR_DIV0); v/=d;}
+      else if(isMod()){p++; const d=implicit(); if(d===0) throw E(ERR_DIV0); v=((v%d)+d)%d;}
+      else return v;
+    }
+  }
+  function implicit(){ let v=unary(); while(startsFactor()) v*=power(); return v; }
+  function unary(){ if(isOp('-')){p++; return -unary();} if(isOp('+')){p++; return unary();} return power(); }
+  function power(){ const b=postfix(); if(isOp('^')){ p++; return pw(b,powExp()); } return b; }
+  function powExp(){ if(isOp('-')){p++; return -powExp();} if(isOp('+')){p++; return powExp();} return power(); }
+  function postfix(){ let v=primary(); for(;;){ if(isOp('!')){p++; v=factFn(v);} else if(isOp('%')){p++; v=v/100;} else return v; } }
+  function primary(){
+    const t=toks[p]; if(!t) throw E(ERR_SYNTAX);
+    if(t.t==='num'){ p++; return t.v; }
+    if(t.t==='op'&&t.v==='('){ p++; const v=expr(); if(!isOp(')')) throw E(ERR_SYNTAX); p++; return v; }
+    if(t.t==='id'){
+      p++;
+      const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+      if(ctx&&ctx.vars&&own(ctx.vars,t.v)) return ctx.vars[t.v];
+      if(own(CONSTS,t.v)) return CONSTS[t.v](ctx);
+      const fn=own(FUNCS,t.v)? FUNCS[t.v] : null; if(!fn) throw E(ERR_SYNTAX);
+      let args=[];
+      if(isOp('(')){
+        p++;
+        if(!isOp(')')){ args.push(expr()); while(isOp(',')){ p++; args.push(expr()); } }
+        if(!isOp(')')) throw E(ERR_SYNTAX);
+        p++;
+      } else if(isOp('-')){ p++; args=[-postfix()]; }
+      else args=[postfix()];
+      const [lo,hi]=ARITY[t.v]||[1,1];
+      if(args.length<lo||args.length>hi) throw E(ERR_SYNTAX);
+      return chk(fn(ctx,...args));
+    }
+    throw E(ERR_SYNTAX);
+  }
+  const v=expr();
+  if(p<toks.length) throw E(ERR_SYNTAX);
+  return chk(v);
+}
+
+/* 표기 형식 */
+function stripZeros(s){ return s.indexOf('.')>=0 ? s.replace(/0+$/,'').replace(/\.$/,'') : s; }
+function sciParts(ax,eng){
+  const [m,e]=ax.toExponential(9).split('e');
+  let ex=+e, mant=+m;
+  if(eng){ const e3=Math.floor(ex/3)*3; mant=mant*Math.pow(10,ex-e3); ex=e3; }
+  return {ms:stripZeros(mant.toPrecision(10)),ex};
+}
+// 소수 n자리 고정 문자열(십진 문자열 기준 반올림: 1.005 → 1.01)
+function fixedStr(ax,n){
+  const s=Number(ax.toPrecision(15)).toLocaleString('en-US',{maximumSignificantDigits:15,useGrouping:false});
+  const [ip,fp='']=s.split('.');
+  if(fp.length<=n) return n? ip+'.'+fp.padEnd(n,'0') : ip;
+  let digits=ip+fp.slice(0,n);
+  if(fp[n]>='5') digits=(BigInt(digits)+1n).toString().padStart(ip.length+n,'0');
+  const L=digits.length, i2=digits.slice(0,L-n)||'0', f2=digits.slice(L-n);
+  return n? i2+'.'+f2 : i2;
+}
+// text: 수식에 다시 넣을 수 있는 숫자(자릿수 고정과 무관) / html·disp: 화면 표시용
+// group=true면 천 단위 콤마, dec가 0~10 정수면 NORM 표기에서 소수 dec자리 고정
+function fmtNum(x,mode,group,dec){
+  const fix=mode==='NORM'&&Number.isInteger(dec)&&dec>=0;
+  const sign=x<0?'-':'', ax=Math.abs(x);
+  if(ax===0){ const z=(fix&&dec>0)?'0.'+'0'.repeat(dec):'0'; return {text:'0',html:z,disp:z}; }
+  const s=Number(ax.toPrecision(12));
+  const inNorm=s<1e12&&s>=1e-9;
+  let text=null;
+  if(mode==='NORM'&&inNorm) text=sign+s.toLocaleString('en-US',{maximumSignificantDigits:12,useGrouping:false});
+  if(fix&&ax<1e15){
+    let d=fixedStr(ax,dec);
+    const zero=/^[0.]*$/.test(d);
+    if(group) d=d.replace(/^\d+/,m=>m.replace(/\B(?=(\d{3})+(?!\d))/g,','));
+    d=(zero?'':sign)+d;
+    if(text===null){ const p=sciParts(ax,false); text=`${sign}${p.ms}E${p.ex}`; }
+    return {text,html:d,disp:d};
+  }
+  if(mode==='NORM'&&inNorm){
+    const d=group? sign+s.toLocaleString('en-US',{maximumSignificantDigits:12,useGrouping:true}) : text;
+    return {text,html:d,disp:d};
+  }
+  const p=sciParts(ax,mode==='ENG');
+  const t=`${sign}${p.ms}E${p.ex}`;
+  return {text:t,html:`${sign}${p.ms}×10<sup>${p.ex}</sup>`,disp:t};
+}
+// ==== CORE END ====
+
+/* ========== UI ========== */
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const LS='engcalc.v1';
+const SAVE_MAX=20;
+const VAR_RE=/^[A-Za-z가-힣_][A-Za-z가-힣_0-9]*$/;
+const st={angle:'DEG',fmt:'NORM',comma:true,dec:null,mode:null,second:false,hyp:false,ans:0,mem:0,hasMem:false,justEval:false,history:[],saved:[]};
+
+function save(){ try{ localStorage.setItem(LS,JSON.stringify({angle:st.angle,fmt:st.fmt,comma:st.comma,dec:st.dec,mode:st.mode,mem:st.mem,hasMem:st.hasMem,ans:st.ans,history:st.history,saved:st.saved})); }catch(e){} }
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(LS)||'null');
+    if(d) Object.assign(st,{angle:d.angle||'DEG',fmt:d.fmt||'NORM',comma:d.comma!==false,dec:(Number.isInteger(d.dec)&&d.dec>=0&&d.dec<=10)?d.dec:null,mode:(d.mode==='basic'||d.mode==='sci')?d.mode:null,mem:+d.mem||0,hasMem:!!d.hasMem,ans:+d.ans||0,
+      history:Array.isArray(d.history)?d.history.slice(0,50):[],
+      saved:Array.isArray(d.saved)?d.saved.filter(s=>s&&Number.isFinite(s.v)).slice(0,SAVE_MAX).map(s=>({n:String(s.n||'').slice(0,12),v:s.v})):[]});
+  }catch(e){}
+}
+load();
+
+// 이름을 붙여 저장한 숫자는 수식에서 변수로 쓸 수 있다
+const varMap=()=>{ const m={}; for(const s of st.saved) if(s.n&&VAR_RE.test(s.n)) m[s.n.toLowerCase()]=s.v; return m; };
+// 일반/공학 모드: 직접 고르지 않았다면 좁은 화면(휴대폰)은 일반, 넓은 화면은 공학
+function curMode(){
+  if(st.mode==='basic'||st.mode==='sci') return st.mode;
+  try{ return window.matchMedia('(max-width:620px)').matches?'basic':'sci'; }catch(e){ return 'sci'; }
+}
+const ctx=a=>({angle:a||st.angle,ans:st.ans,mem:st.mem,vars:varMap(),pctAdd:!a&&curMode()==='basic'});
+// 수식 입력창의 천 단위 콤마(숫자 사이의 ',')는 계산 전에 제거. 인수 구분 ', '(쉼표+공백)는 그대로 둔다
+const ev=(src,c)=>evaluate(src.replace(/(\d),(?=\d)/g,'$1'),c);
+// 다른 탭의 입력칸용: 올바른 천 단위 형태(1,234)만 콤마 제거
+const evLoose=(src,c)=>evaluate(src.replace(/\b\d{1,3}(?:,\d{3})+(?!\d)/g,m=>m.replace(/,/g,'')),c);
+const F=v=>fmtNum(v,st.fmt,st.comma,st.dec);
+
+let toastTimer;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1400); }
+function copyText(txt){
+  const done=()=>toast('복사됨: '+(txt.length>32?txt.slice(0,32)+'…':txt));
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,()=>fallback()); }
+  else fallback();
+  function fallback(){
+    try{ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+    catch(e){ toast('복사할 수 없습니다'); }
+  }
+}
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-copy]'); if(b) copyText(b.dataset.copy); });
+
+/* --- 계산 탭 --- */
+const expr=$('#expr'), resultEl=$('#result');
+function showValue(v,cls){ const f=F(v); resultEl.innerHTML=f.html; resultEl.dataset.plain=f.text; resultEl.dataset.disp=f.disp; resultEl.className='result '+cls; }
+function showError(msg){ resultEl.textContent=msg; resultEl.dataset.plain=''; resultEl.dataset.disp=''; resultEl.className='result error'; }
+function showBlank(){ resultEl.innerHTML='&nbsp;'; resultEl.dataset.plain=''; resultEl.dataset.disp=''; resultEl.className='result preview'; }
+
+function calc(commit){
+  const src=expr.value.trim();
+  if(!src){ resultEl.textContent='0'; resultEl.dataset.plain='0'; resultEl.dataset.disp='0'; resultEl.className='result'; return; }
+  try{
+    const v=ev(src,ctx());
+    if(commit){
+      st.ans=v; showValue(v,'final'); st.justEval=true;
+      st.history.unshift({e:src,r:F(v).text,v}); st.history=st.history.slice(0,50);
+      renderHistory(); save();
+    } else showValue(v,'preview');
+  }catch(err){
+    if(commit) showError(err.ko?err.message:ERR_SYNTAX); else showBlank();
+  }
+}
+function ins(text,kind='num'){
+  if(st.justEval){
+    expr.value = kind==='op' ? 'Ans' : '';
+    st.justEval=false;
+    expr.setSelectionRange(expr.value.length,expr.value.length);
+  }
+  const s=expr.selectionStart ?? expr.value.length, e=expr.selectionEnd ?? s;
+  expr.value=expr.value.slice(0,s)+text+expr.value.slice(e);
+  const pos=s+text.length;
+  expr.focus({preventScroll:true}); expr.setSelectionRange(pos,pos);
+  reformatInput();
+  calc(false);
+}
+/* 수식 입력창 천 단위 콤마: 4자리 이상 정수에 자동으로 붙이고, 인수 구분은 ', '(쉼표+공백)로 구별 */
+const isTh=(v,i)=>v[i]===','&&/\d/.test(v[i-1]||'')&&/\d/.test(v[i+1]||'');
+function fmtExpr(v){
+  const s=v.replace(/(\d),(?=\d)/g,'$1');
+  if(!st.comma) return s;
+  return s.replace(/(^|[^0-9A-Za-z가-힣_.])(\d{4,})/g,(m,p,d)=>p+d.replace(/\B(?=(\d{3})+(?!\d))/g,','));
+}
+function reformatInput(){
+  const old=expr.value, pos=expr.selectionStart ?? old.length;
+  const nv=fmtExpr(old); if(nv===old) return;
+  let k=0; for(let i=0;i<pos;i++) if(!isTh(old,i)) k++;
+  let j=0,c=0; while(j<nv.length&&c<k){ if(!isTh(nv,j)) c++; j++; }
+  expr.value=nv; expr.setSelectionRange(j,j);
+}
+const TOKEN_TAIL=/(?:a?(?:sin|cos|tan)h?|log|ln|sqrt|cbrt|abs|exp|floor|ceil|nPr|nCr)\($|10\^\($|e\^\($|Ans$|Rand$| mod $|, $/;
+function backspace(){
+  st.justEval=false;
+  const v0=expr.value;
+  let s=expr.selectionStart ?? v0.length, e=expr.selectionEnd ?? s;
+  if(s===e){
+    const m=TOKEN_TAIL.exec(v0.slice(0,s));
+    if(m) s-=m[0].length;
+    else if(isTh(v0,s-1)) s=Math.max(0,s-2);
+    else s=Math.max(0,s-1);
+  }
+  expr.value=v0.slice(0,s)+v0.slice(e);
+  expr.focus({preventScroll:true}); expr.setSelectionRange(s,s);
+  reformatInput();
+  calc(false);
+}
+function clearAll(){ expr.value=''; st.justEval=false; resultEl.textContent='0'; resultEl.dataset.plain='0'; resultEl.dataset.disp='0'; resultEl.className='result'; expr.focus({preventScroll:true}); }
+function memOp(sign){
+  let v;
+  try{ const src=expr.value.trim(); v= src? ev(src,ctx()) : st.ans; }catch(err){ showError(err.ko?err.message:ERR_SYNTAX); return; }
+  st.mem+=sign*v; st.hasMem=true; refreshKeys(); save(); toast('M = '+F(st.mem).text);
+}
+function cycleAngle(){ st.angle={DEG:'RAD',RAD:'GRAD',GRAD:'DEG'}[st.angle]; refreshKeys(); save(); refreshResult(); }
+function cycleFmt(){ st.fmt={NORM:'SCI',SCI:'ENG',ENG:'NORM'}[st.fmt]; refreshKeys(); save(); refreshResult(); renderHistory(); renderSaved(); }
+function refreshResult(){ if(st.justEval) showValue(st.ans,'final'); else calc(false); }
+
+const keys=[];
+function addKey(host,d){
+  const b=document.createElement('button');
+  b.type='button'; b.className='key '+(d.cls||'');
+  if(d.span) b.style.gridColumn='span '+d.span;
+  b.addEventListener('click',()=>{ d.a(); expr.focus({preventScroll:true}); });
+  b._d=d; host.appendChild(b); keys.push(b);
+}
+function refreshKeys(){
+  for(const b of keys){
+    const d=b._d; b.textContent= typeof d.l==='function' ? d.l() : d.l;
+    if(d.on) b.classList.toggle('on',!!d.on());
+  }
+  $('#stAngle').textContent=st.angle;
+  $('#st2nd').classList.toggle('on',st.second);
+  $('#stHyp').classList.toggle('on',st.hyp);
+  $('#stMem').classList.toggle('on',st.hasMem);
+  $('#stFmt').textContent=st.fmt;
+  $('#stComma').textContent=st.comma?'콤마 ON':'콤마 OFF';
+  $('#stComma').classList.toggle('on',st.comma);
+  $('#stDec').value=st.dec==null?'':String(st.dec);
+  $('#stDec').classList.toggle('on',st.dec!=null);
+}
+const trig=n=>({cls:'fn',
+  l:()=>n+(st.hyp?'h':'')+(st.second?'⁻¹':''),
+  a:()=>{ ins((st.second?'a':'')+n+(st.hyp?'h':'')+'('); st.second=false; st.hyp=false; refreshKeys(); }});
+const alt=(n,a,cls='fn')=>({cls,
+  l:()=>st.second?a.l:n.l,
+  a:()=>{ const x=st.second?a:n; ins(x.t,x.k||'num'); if(st.second){ st.second=false; refreshKeys(); } }});
+const k=(l,t,cls='fn',kind='num')=>({cls,l,a:()=>ins(t,kind)});
+
+const SCI=[
+  {cls:'tog',l:'2nd',on:()=>st.second,a:()=>{st.second=!st.second;refreshKeys();}},
+  {cls:'tog',l:'hyp',on:()=>st.hyp,a:()=>{st.hyp=!st.hyp;refreshKeys();}},
+  {cls:'tog',l:()=>st.angle,a:cycleAngle},
+  {cls:'tog',l:()=>st.fmt,a:cycleFmt},
+  k('Ans','Ans'),
+  trig('sin'),trig('cos'),trig('tan'),k('π','π'),k('e','e'),
+  alt({l:'log',t:'log('},{l:'10ˣ',t:'10^('}),
+  alt({l:'ln',t:'ln('},{l:'eˣ',t:'e^('}),
+  alt({l:'√',t:'√('},{l:'∛',t:'∛('}),
+  alt({l:'x²',t:'²',k:'op'},{l:'x³',t:'³',k:'op'}),
+  k('xʸ','^','fn','op'),
+  k('n!','!','fn','op'),k('1/x','⁻¹','fn','op'),k('|x|','abs('),k('nPr','nPr('),k('nCr','nCr('),
+  {cls:'fn',l:'MC',a:()=>{st.mem=0;st.hasMem=false;refreshKeys();save();toast('메모리 지움');}},
+  {cls:'fn',l:'MR',a:()=>ins('M')},
+  {cls:'fn',l:'M+',a:()=>memOp(1)},
+  {cls:'fn',l:'M−',a:()=>memOp(-1)},
+  k('mod',' mod ','fn','op'),
+  k('%','%','fn','op'),k(',',', '),k('Rand','Rand'),k('floor','floor('),k('ceil','ceil('),
+];
+const MAIN=[
+  k('(','(','op'),k(')',')','op'),{cls:'clr',l:'⌫',a:backspace},{cls:'clr',l:'AC',a:clearAll},
+  k('7','7','num'),k('8','8','num'),k('9','9','num'),k('÷','÷','op','op'),
+  k('4','4','num'),k('5','5','num'),k('6','6','num'),k('×','×','op','op'),
+  k('1','1','num'),k('2','2','num'),k('3','3','num'),k('−','−','op','op'),
+  k('0','0','num'),k('.','.','num'),k('EE','E','fn','op'),k('+','+','op','op'),
+  k('00','00','num'),k('000','000','num'),{cls:'eq',l:'=',span:2,a:()=>calc(true)},
+];
+const BASIC=[
+  {cls:'clr',l:'AC',a:clearAll},{cls:'clr',l:'⌫',a:backspace},k('%','%','op','op'),k('÷','÷','op','op'),
+  k('7','7','num'),k('8','8','num'),k('9','9','num'),k('×','×','op','op'),
+  k('4','4','num'),k('5','5','num'),k('6','6','num'),k('−','−','op','op'),
+  k('1','1','num'),k('2','2','num'),k('3','3','num'),k('+','+','op','op'),
+  k('0','0','num'),k('00','00','num'),k('000','000','num'),k('.','.','num'),
+  k('(','(','fn'),k(')',')','fn'),{cls:'eq',l:'=',span:2,a:()=>calc(true)},
+];
+function buildPads(){
+  keys.length=0;
+  $('#sciPad').innerHTML=''; $('#mainPad').innerHTML='';
+  const sci=curMode()==='sci';
+  if(sci) SCI.forEach(d=>addKey($('#sciPad'),d));
+  (sci?MAIN:BASIC).forEach(d=>addKey($('#mainPad'),d));
+  refreshKeys();
+}
+function applyMode(){
+  const m=curMode();
+  $('#calcCard').dataset.mode=m;
+  $$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  st.second=false; st.hyp=false;
+  buildPads();
+}
+$('#modeSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-m]'); if(!b) return;
+  st.mode=b.dataset.m; save(); applyMode(); refreshResult();
+  expr.focus({preventScroll:true});
+});
+try{ const mq=window.matchMedia('(max-width:620px)'); const onMq=()=>{ if(!st.mode){ applyMode(); refreshResult(); } };
+  if(mq.addEventListener) mq.addEventListener('change',onMq); else if(mq.addListener) mq.addListener(onMq); }catch(e){}
+applyMode();
+
+expr.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ e.preventDefault(); calc(true); return; }
+  if(e.key==='Escape'){ e.preventDefault(); clearAll(); return; }
+  // 인수 구분 쉼표는 ', '로 넣어 천 단위 콤마와 구별한다
+  if(e.key===','&&!e.ctrlKey&&!e.metaKey&&!e.altKey){ e.preventDefault(); if(!st.justEval) ins(', '); return; }
+  // 천 단위 콤마/", "는 한 글자처럼 지워지도록 커서를 건너뛴다
+  if((e.key==='Backspace'||e.key==='Delete')&&expr.selectionStart===expr.selectionEnd){
+    const p=expr.selectionStart, v=expr.value;
+    if(e.key==='Backspace'){
+      if(v.slice(p-2,p)===', ') expr.setSelectionRange(p-2,p);
+      else if(isTh(v,p-1)) expr.setSelectionRange(p-1,p-1);
+    } else if(isTh(v,p)) expr.setSelectionRange(p+1,p+1);
+  }
+  if(st.justEval){
+    if(e.key==='Backspace'||e.key==='Delete'){ st.justEval=false; return; }
+    if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.length===1){
+      if(/[+\-*\/^!%×÷−]/.test(e.key)) expr.value='Ans';
+      else if(/[0-9.(a-zA-Zπ√]/.test(e.key)) expr.value='';
+      else return;
+      st.justEval=false; expr.setSelectionRange(expr.value.length,expr.value.length);
+    }
+  }
+});
+expr.addEventListener('input',()=>{ st.justEval=false; reformatInput(); calc(false); });
+expr.addEventListener('paste',e=>{
+  const t=(e.clipboardData&&e.clipboardData.getData('text'))||'';
+  if(!t) return;
+  e.preventDefault();
+  // 1,234 형태는 천 단위 콤마로 보고, 그 밖의 쉼표는 인수 구분(', ')으로 바꾼다
+  ins(t.replace(/\s*\n\s*/g,' ').replace(/\d{1,3}(?:,\d{3})+(?!\d)|,(?!\s)/g,m=>m===','?', ':m),'num');
+});
+resultEl.addEventListener('click',()=>{ const p=resultEl.dataset.disp; if(p) copyText(p); });
+
+function renderHistory(){
+  const ul=$('#histList');
+  if(!st.history.length){ ul.innerHTML='<div class="empty">아직 계산 기록이 없습니다.</div>'; return; }
+  ul.innerHTML='';
+  st.history.forEach((h,i)=>{
+    const li=document.createElement('li');
+    const a=document.createElement('div'); a.className='h-expr'; a.textContent=h.e+' ='; a.dataset.i=i; a.dataset.k='e';
+    const b=document.createElement('div'); b.className='h-res'; b.innerHTML=F(h.v).html; b.dataset.i=i; b.dataset.k='r';
+    li.append(a,b); ul.appendChild(li);
+  });
+}
+$('#histList').addEventListener('click',e=>{
+  const el=e.target.closest('[data-i]'); if(!el) return;
+  const h=st.history[+el.dataset.i]; if(!h) return;
+  if(el.dataset.k==='e'){ st.justEval=false; expr.value=h.e; expr.focus({preventScroll:true}); expr.setSelectionRange(h.e.length,h.e.length); reformatInput(); calc(false); }
+  else ins(F(h.v).text);
+});
+$('#histClear').addEventListener('click',()=>{ st.history=[]; renderHistory(); save(); });
+renderHistory();
+
+/* 콤마 켜기/끄기 */
+function refreshAll(){ refreshKeys(); save(); reformatInput(); refreshResult(); renderHistory(); renderSaved(); renderCx(); renderStat(); renderUnit(); }
+$('#stComma').addEventListener('click',()=>{ st.comma=!st.comma; refreshAll(); expr.focus({preventScroll:true}); });
+/* 소수 자릿수 고정 */
+$('#stDec').addEventListener('change',e=>{ st.dec=e.target.value===''?null:+e.target.value; refreshAll(); expr.focus({preventScroll:true}); });
+
+/* 저장한 숫자 (최대 20개) */
+function renderSaved(){
+  const box=$('#savedList');
+  $('#savedCount').textContent=`${st.saved.length}/${SAVE_MAX}`;
+  if(!st.saved.length){ box.innerHTML='<div class="empty">자주 쓰는 숫자를 최대 20개까지 저장해 두고, 클릭하면 수식에 넣을 수 있습니다.</div>'; return; }
+  box.innerHTML='';
+  st.saved.forEach((s,i)=>{
+    const row=document.createElement('div'); row.className='s-row';
+    const lab=document.createElement('span'); lab.className='s-lab'; lab.textContent=s.n||('#'+(i+1)); lab.title=s.n||'';
+    if(s.n&&VAR_RE.test(s.n)){ lab.classList.add('link'); lab.dataset.n=s.n; lab.title='클릭하면 이름 '+s.n+'을(를) 수식에 삽입'; }
+    const val=document.createElement('span'); val.className='s-val'; val.innerHTML=F(s.v).html; val.dataset.i=i; val.title='클릭하면 수식에 삽입';
+    const del=document.createElement('button'); del.type='button'; del.className='s-del'; del.textContent='✕'; del.title='삭제'; del.dataset.del=i;
+    row.append(lab,val,del); box.appendChild(row);
+  });
+}
+function saveCurrent(){
+  const nameEl=$('#savedName');
+  const name=nameEl.value.trim().replace(/\s+/g,'_').slice(0,12);
+  if(name){
+    if(!VAR_RE.test(name)){ toast('이름은 글자·숫자·_ 만 쓸 수 있고 글자로 시작해야 합니다 (예: A, 환율)'); return; }
+    if(NAMES.includes(name.toLowerCase())){ toast(`'${name}'은(는) 계산기 예약어라 이름으로 쓸 수 없습니다`); return; }
+  }
+  const idx= name? st.saved.findIndex(s=>(s.n||'').toLowerCase()===name.toLowerCase()) : -1;
+  if(idx<0&&st.saved.length>=SAVE_MAX){ toast(`최대 ${SAVE_MAX}개까지 저장할 수 있습니다. 하나를 삭제해 주세요`); return; }
+  const src=expr.value.trim(); let v;
+  try{ v= st.justEval ? st.ans : (src? ev(src,ctx()) : null); }
+  catch(err){ showError(err.ko?err.message:ERR_SYNTAX); return; }
+  if(v===null){ toast('저장할 값이 없습니다. 먼저 계산하거나 수식을 입력하세요'); return; }
+  if(idx>=0){ st.saved[idx].v=v; toast(`'${name}' 값을 갱신했습니다: `+F(v).disp); }
+  else { st.saved.push({n:name,v}); toast('저장됨: '+F(v).disp); }
+  nameEl.value=''; renderSaved(); save();
+}
+$('#savedAdd').addEventListener('click',saveCurrent);
+$('#savedName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); saveCurrent(); } });
+$('#savedList').addEventListener('click',e=>{
+  const d=e.target.closest('[data-del]');
+  if(d){ st.saved.splice(+d.dataset.del,1); renderSaved(); save(); return; }
+  const nm=e.target.closest('[data-n]');
+  if(nm){ ins(nm.dataset.n); return; }
+  const v=e.target.closest('[data-i]');
+  if(v){ const s=st.saved[+v.dataset.i]; if(s) ins(F(s.v).text); }
+});
+let clearArm=0;
+$('#savedClear').addEventListener('click',e=>{
+  if(!st.saved.length) return;
+  const b=e.currentTarget;
+  if(!clearArm){ b.textContent='한 번 더 누르면 삭제'; clearArm=setTimeout(()=>{ b.textContent='모두 삭제'; clearArm=0; },3000); return; }
+  clearTimeout(clearArm); clearArm=0; b.textContent='모두 삭제'; st.saved=[]; renderSaved(); save();
+});
+renderSaved();
+
+document.addEventListener('keydown',e=>{
+  if(curTab!=='calc'||e.ctrlKey||e.metaKey||e.altKey) return;
+  const a=document.activeElement;
+  if(a&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName)) return;
+  if(e.key.length===1||e.key==='Backspace'||e.key==='Enter') expr.focus({preventScroll:true});
+});
+
+/* --- 탭 / 테마 --- */
+let curTab='calc';
+$('#tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-tab]'); if(!b) return;
+  curTab=b.dataset.tab;
+  $$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['calc','base','cx','stat','unit'].forEach(n=>{ $('#tab-'+n).hidden = n!==curTab; });
+  if(curTab==='calc') expr.focus({preventScroll:true});
+});
+$('#themeBtn').addEventListener('click',()=>{
+  const t=document.documentElement.dataset.theme==='dark'?'light':'dark';
+  document.documentElement.dataset.theme=t;
+  try{ localStorage.setItem('engcalc.theme',t); }catch(e){}
+});
+
+/* --- 진법·비트 --- */
+const BASE_NAME={2:'2진수',8:'8진수',10:'10진수',16:'16진수'};
+const bs={base:10,op:'AND'};
+function parseBig(str,base){
+  let s=str.trim().replace(/[\s_]/g,''); if(!s) return null;
+  let neg=false;
+  if(s[0]==='-'){neg=true;s=s.slice(1);} else if(s[0]==='+') s=s.slice(1);
+  const pre={2:/^0b/i,8:/^0o/i,16:/^0x/i}[base]; if(pre) s=s.replace(pre,'');
+  if(!s) throw new Error('값을 입력하세요');
+  const digits='0123456789abcdef', B=BigInt(base); let v=0n;
+  for(const ch of s.toLowerCase()){
+    const d=digits.indexOf(ch);
+    if(d<0||d>=base) throw new Error(`'${ch.toUpperCase()}'은(는) ${BASE_NAME[base]}에서 사용할 수 없는 문자입니다`);
+    v=v*B+BigInt(d);
+  }
+  return neg?-v:v;
+}
+const toBase=(v,b)=>(v<0n?'-':'')+(v<0n?-v:v).toString(b).toUpperCase();
+const group4=s=>{ const neg=s[0]==='-'; const t=neg?s.slice(1):s; return (neg?'-':'')+t.replace(/(.)(?=(.{4})+$)/g,'$1 '); };
+function baseRows(v){
+  return [['BIN',2],['OCT',8],['DEC',10],['HEX',16]].map(([n,b])=>{
+    const raw=toBase(v,b), disp=(b===2||b===16)?group4(raw):raw;
+    return `<div class="orow"><span class="olab">${n}</span><code class="oval">${disp}</code><button class="mini" data-copy="${raw}">복사</button></div>`;
+  }).join('');
+}
+function twosRows(v){
+  const w=+$('#bitW').value, W=BigInt(w);
+  const min=-(1n<<(W-1n)), max=(1n<<W)-1n;
+  if(v<min||v>max) return `<div class="subtle">${w}비트 표현</div><div class="empty">${w}비트 범위(${min} ~ ${max})를 벗어납니다.</div>`;
+  const u=BigInt.asUintN(w,v);
+  const bin=u.toString(2).padStart(w,'0'), hex=u.toString(16).toUpperCase().padStart(w/4,'0');
+  return `<div class="subtle">${w}비트 표현 (음수는 2의 보수)</div>
+    <div class="orow"><span class="olab">BIN</span><code class="oval">${group4(bin)}</code><button class="mini" data-copy="${bin}">복사</button></div>
+    <div class="orow"><span class="olab">HEX</span><code class="oval">${group4(hex)}</code><button class="mini" data-copy="${hex}">복사</button></div>`;
+}
+function renderBase(){
+  const msg=$('#baseMsg'), out=$('#baseOut'); msg.textContent='';
+  try{
+    const v=parseBig($('#baseIn').value,bs.base);
+    if(v===null){ out.innerHTML=''; return; }
+    out.innerHTML=baseRows(v)+twosRows(v);
+  }catch(e){ msg.textContent=e.message; out.innerHTML=''; }
+}
+function renderBit(){
+  const msg=$('#bitMsg'), out=$('#bitOut'); msg.textContent=''; out.innerHTML='';
+  try{
+    const A=parseBig($('#bitA').value,bs.base);
+    const shift=bs.op==='SHL'||bs.op==='SHR';
+    const B=parseBig($('#bitB').value,shift?10:bs.base);
+    if(A===null) return;
+    let r;
+    if(bs.op==='NOT') r=BigInt.asUintN(+$('#bitW').value,~A);
+    else{
+      if(B===null) return;
+      switch(bs.op){
+        case 'AND': r=A&B; break;
+        case 'OR': r=A|B; break;
+        case 'XOR': r=A^B; break;
+        case 'SHL': if(B<0n||B>4096n) throw new Error('시프트 양은 0 ~ 4096 사이여야 합니다'); r=A<<B; break;
+        case 'SHR': if(B<0n||B>4096n) throw new Error('시프트 양은 0 ~ 4096 사이여야 합니다'); r=A>>B; break;
+      }
+    }
+    out.innerHTML=baseRows(r)+twosRows(r);
+  }catch(e){ msg.textContent=e.message; }
+}
+$('#baseSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-b]'); if(!b) return;
+  const old=bs.base; bs.base=+b.dataset.b;
+  $$('#baseSeg button').forEach(x=>x.classList.toggle('on',x===b));
+  // 입력값을 새 진법으로 바꿔 보여줌
+  for(const id of ['#baseIn','#bitA','#bitB']){
+    if(id==='#bitB'&&(bs.op==='SHL'||bs.op==='SHR')) continue;
+    try{ const v=parseBig($(id).value,old); if(v!==null) $(id).value=toBase(v,bs.base); }catch(_){}
+  }
+  renderBase(); renderBit();
+});
+$('#baseIn').addEventListener('input',renderBase);
+$('#bitW').addEventListener('change',()=>{ renderBase(); renderBit(); });
+$('#bitA').addEventListener('input',renderBit);
+$('#bitB').addEventListener('input',renderBit);
+$('#bitOps').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-op]'); if(!b) return;
+  bs.op=b.dataset.op;
+  $$('#bitOps button').forEach(x=>x.classList.toggle('on',x===b));
+  const shift=bs.op==='SHL'||bs.op==='SHR';
+  $('#bitBLab').textContent= shift? 'B (시프트 양, 10진수)' : 'B (입력 진법)';
+  $('#bitB').disabled = bs.op==='NOT';
+  renderBit();
+});
+
+/* --- 복소수 --- */
+const CX_OPS=[['add','z₁ + z₂'],['sub','z₁ − z₂'],['mul','z₁ × z₂'],['div','z₁ ÷ z₂'],['pow','z₁ ^ z₂'],
+  ['abs','|z₁|'],['conj','켤레 z̄₁'],['sqrt','√z₁'],['exp','e^z₁'],['ln','ln z₁'],['inv','1 / z₁']];
+const cx={op:'add',unit:'deg'};
+CX_OPS.forEach(([id,l])=>{ const b=document.createElement('button'); b.dataset.op=id; b.textContent=l; if(id===cx.op) b.className='on'; $('#cxOps').appendChild(b); });
+const cxField=id=>{ const s=$(id).value.trim(); return s? evLoose(s,ctx('RAD')) : 0; };
+function cxArg(re,im){ return Math.atan2(im,re); }
+function cxCompute(op,a,b,c,d){
+  const r=Math.hypot(a,b);
+  switch(op){
+    case 'add': return [a+c,b+d];
+    case 'sub': return [a-c,b-d];
+    case 'mul': return [a*c-b*d,a*d+b*c];
+    case 'div': { const den=c*c+d*d; if(den===0) throw E(ERR_DIV0); return [(a*c+b*d)/den,(b*c-a*d)/den]; }
+    case 'pow': {
+      if(r===0){ if(c===0&&d===0) return [1,0]; if(c>0) return [0,0]; throw E(ERR_DOMAIN); }
+      const lr=Math.log(r), th=cxArg(a,b);
+      const wr=c*lr-d*th, wi=c*th+d*lr, m=Math.exp(wr);
+      return [m*Math.cos(wi),m*Math.sin(wi)];
+    }
+    case 'abs': return [r,0];
+    case 'conj': return [a,-b];
+    case 'sqrt': { const re=Math.sqrt((r+a)/2); let im=Math.sqrt(Math.max(0,(r-a)/2)); if(b<0) im=-im; return [re,im]; }
+    case 'exp': { const m=Math.exp(a); return [m*Math.cos(b),m*Math.sin(b)]; }
+    case 'ln': if(r===0) throw E(ERR_DOMAIN); return [Math.log(r),cxArg(a,b)];
+    case 'inv': { const den=a*a+b*b; if(den===0) throw E(ERR_DIV0); return [a/den,-b/den]; }
+  }
+}
+function cxClean([x,y]){
+  const m=Math.max(Math.abs(x),Math.abs(y));
+  if(Math.abs(x)<m*1e-13) x=0;
+  if(Math.abs(y)<m*1e-13) y=0;
+  return [x,y];
+}
+const fN=v=>fmtNum(v,'NORM',st.comma,st.dec).disp;
+const cxText=([x,y])=>`${fN(x)} ${y<0?'−':'+'} ${fN(Math.abs(y))}i`;
+function renderCx(){
+  const msg=$('#cxMsg'), out=$('#cxOut'); msg.textContent='';
+  try{
+    const a=cxField('#cxA'),b=cxField('#cxB'),c=cxField('#cxC'),d=cxField('#cxD');
+    const res=cxClean(cxCompute(cx.op,a,b,c,d)); chk(res[0]); chk(res[1]);
+    const r=Math.hypot(res[0],res[1]);
+    let th=r===0?0:cxArg(res[0],res[1]);
+    const thTxt= cx.unit==='deg' ? fN(th*180/Math.PI)+'°' : fN(th)+' rad';
+    const rect=cxText(res), polar=`${fN(r)} ∠ ${thTxt}`;
+    out.innerHTML=`
+      <div class="orow"><span class="olab">직교형</span><code class="oval">${rect}</code><button class="mini" data-copy="${rect}">복사</button></div>
+      <div class="orow"><span class="olab">극형식</span><code class="oval">${polar}</code><button class="mini" data-copy="${polar}">복사</button></div>
+      <div class="orow"><span class="olab">실수부</span><code class="oval">${fN(res[0])}</code><button class="mini" data-copy="${fN(res[0])}">복사</button></div>
+      <div class="orow"><span class="olab">허수부</span><code class="oval">${fN(res[1])}</code><button class="mini" data-copy="${fN(res[1])}">복사</button></div>`;
+  }catch(e){ msg.textContent=e.ko?e.message:'입력값을 확인하세요'; out.innerHTML=''; }
+}
+$('#cxOps').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-op]'); if(!b) return;
+  cx.op=b.dataset.op; $$('#cxOps button').forEach(x=>x.classList.toggle('on',x===b)); renderCx();
+});
+$('#cxUnit').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-u]'); if(!b) return;
+  cx.unit=b.dataset.u; $$('#cxUnit button').forEach(x=>x.classList.toggle('on',x===b)); renderCx();
+});
+['#cxA','#cxB','#cxC','#cxD'].forEach(id=>$(id).addEventListener('input',renderCx));
+renderCx();
+
+/* --- 통계 --- */
+function parseList(txt){
+  const parts=txt.split(/[\s,;]+/).filter(Boolean), out=[];
+  for(const p of parts){ const n=Number(p); if(!Number.isFinite(n)) throw new Error(`숫자가 아닌 값이 있습니다: ${p}`); out.push(n); }
+  return out;
+}
+const quantile=(s,q)=>{ const pos=(s.length-1)*q, lo=Math.floor(pos), hi=Math.ceil(pos); return s[lo]+(s[hi]-s[lo])*(pos-lo); };
+function renderStat(){
+  const msg=$('#statMsg'), out=$('#statOut'); msg.textContent='';
+  try{
+    const xs=parseList($('#statX').value), ys=parseList($('#statY').value);
+    if(!xs.length){ out.innerHTML='<div class="empty">X 값을 입력하면 바로 계산됩니다.</div>'; return; }
+    const n=xs.length, sum=xs.reduce((a,b)=>a+b,0), mean=sum/n;
+    const sq=xs.reduce((a,b)=>a+b*b,0), ss=xs.reduce((a,b)=>a+(b-mean)**2,0);
+    const sorted=[...xs].sort((a,b)=>a-b);
+    const median=quantile(sorted,.5), q1=quantile(sorted,.25), q3=quantile(sorted,.75);
+    const freq=new Map(); xs.forEach(v=>freq.set(v,(freq.get(v)||0)+1));
+    const mf=Math.max(...freq.values());
+    const mode= mf===1 ? '없음' : [...freq].filter(([,c])=>c===mf).map(([v])=>fN(v)).join(', ');
+    const rows=[
+      ['개수 n',n],['합계 Σx',fN(sum)],['제곱합 Σx²',fN(sq)],['평균',fN(mean)],['중앙값',fN(median)],['최빈값',mode],
+      ['최솟값',fN(sorted[0])],['최댓값',fN(sorted[n-1])],['범위',fN(sorted[n-1]-sorted[0])],
+      ['Q1 (선형 보간)',fN(q1)],['Q3 (선형 보간)',fN(q3)],['사분위 범위 IQR',fN(q3-q1)],
+      ['모분산 σ²',fN(ss/n)],['모표준편차 σ',fN(Math.sqrt(ss/n))],
+      ['표본분산 s²',n>1?fN(ss/(n-1)):'—'],['표본표준편차 s',n>1?fN(Math.sqrt(ss/(n-1))):'—'],
+      ['표준오차 s/√n',n>1?fN(Math.sqrt(ss/(n-1))/Math.sqrt(n)):'—'],
+    ];
+    let html='<table class="t">'+rows.map(([a,b])=>`<tr><td>${a}</td><td>${b}</td></tr>`).join('')+'</table>';
+    if(ys.length){
+      if(ys.length!==n) throw new Error(`X(${n}개)와 Y(${ys.length}개)의 개수가 다릅니다`);
+      if(n<2) throw new Error('회귀에는 2쌍 이상이 필요합니다');
+      const my=ys.reduce((a,b)=>a+b,0)/n;
+      let sxx=0,syy=0,sxy=0; for(let i=0;i<n;i++){ sxx+=(xs[i]-mean)**2; syy+=(ys[i]-my)**2; sxy+=(xs[i]-mean)*(ys[i]-my); }
+      if(sxx===0) throw new Error('X 값이 모두 같아 회귀식을 구할 수 없습니다');
+      const a=sxy/sxx, b=my-a*mean, r= syy===0 ? NaN : sxy/Math.sqrt(sxx*syy);
+      html+=`<div class="subtle">선형 회귀 y = ax + b</div><table class="t">
+        <tr><td>기울기 a</td><td>${fN(a)}</td></tr><tr><td>절편 b</td><td>${fN(b)}</td></tr>
+        <tr><td>상관계수 r</td><td>${Number.isNaN(r)?'—':fN(r)}</td></tr><tr><td>결정계수 r²</td><td>${Number.isNaN(r)?'—':fN(r*r)}</td></tr>
+        <tr><td>Y 평균</td><td>${fN(my)}</td></tr></table>`;
+    }
+    out.innerHTML=html;
+  }catch(e){ msg.textContent=e.message; out.innerHTML=''; }
+}
+$('#statX').addEventListener('input',renderStat);
+$('#statY').addEventListener('input',renderStat);
+
+/* --- 단위 변환 --- */
+const PI=Math.PI;
+const UNITS={
+  '길이':{'mm':1e-3,'cm':1e-2,'m':1,'km':1e3,'μm':1e-6,'nm':1e-9,'in':0.0254,'ft':0.3048,'yd':0.9144,'mi':1609.344,'nmi':1852},
+  '질량':{'mg':1e-6,'g':1e-3,'kg':1,'t':1e3,'oz':0.028349523125,'lb':0.45359237},
+  '시간':{'ms':1e-3,'s':1,'min':60,'h':3600,'일':86400,'주':604800,'년(365.25일)':31557600},
+  '온도':null,
+  '면적':{'mm²':1e-6,'cm²':1e-4,'m²':1,'km²':1e6,'ha':1e4,'in²':0.00064516,'ft²':0.09290304,'acre':4046.8564224,'평':400/121},
+  '부피':{'mL':1e-6,'L':1e-3,'m³':1,'in³':1.6387064e-5,'ft³':0.028316846592,'fl oz(US)':2.95735295625e-5,'gal(US)':0.003785411784},
+  '속도':{'m/s':1,'km/h':1/3.6,'mph':0.44704,'kn':1852/3600,'ft/s':0.3048},
+  '힘':{'N':1,'kN':1e3,'kgf':9.80665,'lbf':4.4482216152605,'dyn':1e-5},
+  '압력':{'Pa':1,'kPa':1e3,'MPa':1e6,'bar':1e5,'atm':101325,'psi':6894.757293168,'mmHg':133.322387415,'Torr':101325/760,'kgf/cm²':98066.5},
+  '에너지':{'J':1,'kJ':1e3,'cal':4.184,'kcal':4184,'Wh':3600,'kWh':3.6e6,'eV':1.602176634e-19,'BTU':1055.05585262,'ft·lbf':1.3558179483314004},
+  '전력':{'W':1,'kW':1e3,'MW':1e6,'hp(영국마력)':745.69987158227,'PS(미터마력)':735.49875,'BTU/h':0.29307107},
+  '각도':{'rad':1,'°(도)':PI/180,'grad':PI/200,'회전(rev)':2*PI,'′(분)':PI/10800,'″(초)':PI/648000},
+  '데이터':{'bit':0.125,'B':1,'KB':1e3,'MB':1e6,'GB':1e9,'TB':1e12,'KiB':1024,'MiB':1048576,'GiB':1073741824,'TiB':1099511627776},
+};
+const TEMP={'°C':[v=>v+273.15,k=>k-273.15],'K':[v=>v,k=>k],'°F':[v=>(v-32)*5/9+273.15,k=>(k-273.15)*9/5+32],'°R':[v=>v*5/9,k=>k*9/5]};
+const un={cat:'길이'};
+function unitList(cat){ return cat==='온도'? Object.keys(TEMP) : Object.keys(UNITS[cat]); }
+function convert(cat,v,from,to){
+  if(cat==='온도') return TEMP[to][1](TEMP[from][0](v));
+  return v*UNITS[cat][from]/UNITS[cat][to];
+}
+function setCat(cat){
+  un.cat=cat;
+  $$('#unitCats button').forEach(b=>b.classList.toggle('on',b.dataset.c===cat));
+  const list=unitList(cat);
+  const opts=list.map(u=>`<option>${u}</option>`).join('');
+  $('#unitFrom').innerHTML=opts; $('#unitTo').innerHTML=opts;
+  $('#unitFrom').selectedIndex=cat==='온도'?0:Math.min(2,list.length-1);
+  $('#unitTo').selectedIndex=cat==='온도'?2:Math.min(3,list.length-1);
+  renderUnit();
+}
+function renderUnit(){
+  const msg=$('#unitMsg'), res=$('#unitRes'), all=$('#unitAll'); msg.textContent='';
+  try{
+    const s=$('#unitVal').value.trim();
+    const v=s? evLoose(s,ctx('RAD')) : 0;
+    const from=$('#unitFrom').value, to=$('#unitTo').value;
+    const r=convert(un.cat,v,from,to), f=fmtNum(r,'NORM',st.comma);
+    res.innerHTML=`${fmtNum(v,'NORM',st.comma).disp} ${from} = ${f.html} ${to}`;
+    all.innerHTML=unitList(un.cat).map(u=>`<tr><td>${u}</td><td>${fmtNum(convert(un.cat,v,from,u),'NORM',st.comma).html}</td></tr>`).join('');
+  }catch(e){ msg.textContent=e.ko?e.message:'값을 확인하세요'; res.textContent='—'; all.innerHTML=''; }
+}
+Object.keys(UNITS).forEach(c=>{ const b=document.createElement('button'); b.dataset.c=c; b.textContent=c; $('#unitCats').appendChild(b); });
+$('#unitCats').addEventListener('click',e=>{ const b=e.target.closest('button[data-c]'); if(b) setCat(b.dataset.c); });
+$('#unitVal').addEventListener('input',renderUnit);
+$('#unitFrom').addEventListener('change',renderUnit);
+$('#unitTo').addEventListener('change',renderUnit);
+$('#unitSwap').addEventListener('click',()=>{ const f=$('#unitFrom'),t=$('#unitTo'); const i=f.selectedIndex; f.selectedIndex=t.selectedIndex; t.selectedIndex=i; renderUnit(); });
+setCat('길이');
+
+/* --- 물리·공학 상수 (CODATA 2018 / SI 정의값) --- */
+const PHYS=[
+  ['기본 물리 상수',[
+    ['광속 c','299792458','m/s'],
+    ['플랑크 상수 h','6.62607015E-34','J·s'],
+    ['환산 플랑크 상수 ħ','1.054571817E-34','J·s'],
+    ['볼츠만 상수 k_B','1.380649E-23','J/K'],
+    ['아보가드로 수 N_A','6.02214076E23','1/mol'],
+    ['기체 상수 R','8.314462618','J/(mol·K)'],
+    ['패러데이 상수 F','96485.33212','C/mol'],
+    ['기본 전하 e','1.602176634E-19','C'],
+    ['만유인력 상수 G','6.6743E-11','m³/(kg·s²)'],
+    ['스테판-볼츠만 상수 σ','5.670374419E-8','W/(m²·K⁴)'],
+    ['리드베리 상수 R∞','10973731.56816','1/m'],
+    ['진공 유전율 ε₀','8.8541878128E-12','F/m'],
+    ['진공 투자율 μ₀','1.25663706212E-6','N/A²'],
+    ['쿨롱 상수 k','8.9875517923E9','N·m²/C²'],
+  ]],
+  ['입자 질량',[
+    ['전자 질량 m_e','9.1093837015E-31','kg'],
+    ['양성자 질량 m_p','1.67262192369E-27','kg'],
+    ['중성자 질량 m_n','1.67492749804E-27','kg'],
+    ['원자 질량 단위 u','1.6605390666E-27','kg'],
+  ]],
+  ['지구·천체·환경',[
+    ['표준 중력가속도 g','9.80665','m/s²'],
+    ['표준 대기압 atm','101325','Pa'],
+    ['0 °C (켈빈)','273.15','K'],
+    ['공기 밀도 (15 °C, 해수면)','1.225','kg/m³'],
+    ['음속 (공기, 약 20 °C)','343','m/s'],
+    ['지구 평균 반지름','6371000','m'],
+    ['지구 질량','5.9722E24','kg'],
+    ['태양 질량','1.98847E30','kg'],
+    ['천문단위 AU','1.495978707E11','m'],
+    ['광년 ly','9.4607304725808E15','m'],
+  ]],
+];
+(function(){
+  const sel=$('#constSel');
+  sel.innerHTML='<option value="" selected>상수 삽입 — 물리·공학 상수 선택…</option>';
+  PHYS.forEach(([grp,list])=>{
+    const og=document.createElement('optgroup'); og.label=grp;
+    list.forEach(([n,t,u])=>{
+      const o=document.createElement('option');
+      o.value=t; o.dataset.n=n; o.dataset.u=u;
+      o.textContent=`${n} = ${t.replace(/E(-?\d+)/,'×10^$1')} ${u}`;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+  sel.addEventListener('change',()=>{
+    const o=sel.selectedOptions[0];
+    if(!o||!o.value) return;
+    ins(o.value);
+    toast(`${o.dataset.n} = ${o.textContent.split(' = ')[1]}`);
+    sel.selectedIndex=0;
+    expr.focus({preventScroll:true});
+  });
+})();
+
+refreshKeys();
+if(window.matchMedia&&matchMedia('(pointer:fine)').matches) expr.focus({preventScroll:true});
+</script>
+</body>
+</html>
